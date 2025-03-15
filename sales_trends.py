@@ -230,8 +230,8 @@ st.markdown(
 """
 )
 
-
 # ===== RMSE Calculation ===== 
+# How much you are off on average when predicting sales, demand, or profits
 # Actual sales from last 30 days
 y_true = data[-30:].values  
 
