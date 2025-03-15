@@ -7,7 +7,7 @@ from tensorflow.keras.models import Sequential  # For building the sequential LS
 from tensorflow.keras.layers import LSTM, Dense  # For creating LSTM layers and output layer in the neural network
 import streamlit as st  # For creating interactive web app to display forecasts and analysis
 import matplotlib.pyplot as plt  # For plotting sales trends and forecast visualization
-
+from sklearn.metrics import mean_absolute_error,mean_squared_error
 
 # ===== Load dataset =====
 df = pd.read_csv("SalesDatasets/train.csv",parse_dates=["date"])
@@ -220,12 +220,59 @@ model_comparison = compare_models(forecast_df["arima_forecast"],forecast_df["lst
 # Display insights
 st.markdown(
     f"""
-- **> ARIMA Forecast Trend**: The sales trend is **{arima_trend}** over the next 30 days.
-- **> LSTM Forecast Trend**: The sales trend is **{lstm_trend}** over the next 30 days.
+- **ARIMA Forecast Trend**: The sales trend is **{arima_trend}** over the next 30 days.
+- **LSTM Forecast Trend**: The sales trend is **{lstm_trend}** over the next 30 days.
 
-- **> ARIMA Forecast Volatility**: The forecast shows **{arima_volatility}** sales fluctuations.
-- **> LSTM Forecast Volatility**: The forecast shows **{lstm_volatility}** sales fluctuations.
+- **ARIMA Forecast Volatility**: The forecast shows **{arima_volatility}** sales fluctuations.
+- **LSTM Forecast Volatility**: The forecast shows **{lstm_volatility}** sales fluctuations.
 
-- **> Model Comparison**: The forecasts are **{model_comparison}**, indicating that both models {'agree' if model_comparison == 'similar' else 'differ'} on the sales trend.
+- **Model Comparison**: The forecasts are **{model_comparison}**, indicating that both models {'agree' if model_comparison == 'similar' else 'differ'} on the sales trend.
 """
 )
+
+
+# ===== RMSE Calculation ===== 
+# Actual sales from last 30 days
+y_true = data[-30:].values  
+
+# RMSE for ARIMA and LSTM
+arima_rmse = mean_squared_error(y_true, arima_forecast[:30])
+lstm_rmse = mean_squared_error(y_true, lstm_forecast[:30])
+
+# Display in Streamlit
+st.metric("ARIMA RMSE", f"{arima_rmse:.2f}")
+st.metric("LSTM RMSE", f"{lstm_rmse:.2f}")
+
+# ==== Dynamic Business Interpretation and Recommendations Based on RMSE
+st.subheader("📊 Forecast Accuracy Analysis & Business Recommendations")
+
+# Threshold for good vs bad model (adjust based on business tolerance, e.g., 10% of avg sales)
+avg_sales = np.mean(y_true)
+error_threshold = avg_sales * 0.10  # Example: 10% error acceptable
+
+# Analyze ARIMA
+if arima_rmse <= error_threshold:
+    st.success(f"ARIMA model is performing well with RMSE of {arima_rmse:.2f}, within acceptable error limits.")
+    st.markdown("**Business Action:** You can rely on ARIMA forecasts for short-term sales planning like inventory restocking and supply chain adjustments.")
+else:
+    st.warning(f"ARIMA model has a higher RMSE of {arima_rmse:.2f}, exceeding acceptable error limits.")
+    st.markdown("**Business Action:** Consider using LSTM if its error is lower, or revisit ARIMA parameters. Avoid using ARIMA alone for critical decisions like bulk purchasing.")
+
+# Analyze LSTM
+if lstm_rmse <= error_threshold:
+    st.success(f"LSTM model is performing well with RMSE of {lstm_rmse:.2f}, within acceptable error limits.")
+    st.markdown("**Business Action:** LSTM can be used for dynamic demand planning, and adjusting marketing or promotions based on expected trends.")
+else:
+    st.warning(f"LSTM model has a higher RMSE of {lstm_rmse:.2f}, exceeding acceptable error limits.")
+    st.markdown("**Business Action:** Revisit LSTM training data, add external features like holidays/promotions, or increase training epochs. Avoid over-reliance on current LSTM forecast for large-scale decisions.")
+
+# Compare models and make recommendation
+if arima_rmse < lstm_rmse:
+    st.info(f"Based on RMSE, **ARIMA is currently more accurate** ({arima_rmse:.2f} vs. {lstm_rmse:.2f}).")
+    st.markdown("**Recommendation:** Prefer ARIMA for short-term forecasts. Use LSTM cautiously or for scenario analysis.")
+elif lstm_rmse < arima_rmse:
+    st.info(f"Based on RMSE, **LSTM is currently more accurate** ({lstm_rmse:.2f} vs. {arima_rmse:.2f}).")
+    st.markdown("**Recommendation:** Prefer LSTM for forecasting, especially if sales patterns are non-linear. ARIMA can serve as a secondary model.")
+else:
+    st.info("Both models perform similarly. You may use combined forecasts for more stable decision-making.")
+    st.markdown("**Recommendation:** Average both forecasts to reduce risk. Continue monitoring and updating models as new data comes in.")
