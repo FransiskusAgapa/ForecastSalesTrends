@@ -10,8 +10,11 @@ import matplotlib.pyplot as plt  # For plotting sales trends and forecast visual
 from sklearn.metrics import mean_absolute_error,mean_squared_error
 
 # ===== Load dataset =====
-df = pd.read_csv("SalesDatasets/train.csv",parse_dates=["date"])
-
+@st.cache_data(persist=True) # Efficiently cache data to speed up repeated loading
+def load_data():
+    df = pd.read_csv("SalesDatasets/train.csv",parse_dates=["date"])
+    return df
+df = load_data()
 # ----- Set data as index -----
 df.set_index("date", inplace=True)
 # why: Setting 'date' as the index makes it easier to perform time series operations like resampling (e.g., daily sales), filtering by date, and aligning forecasts.
